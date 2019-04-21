@@ -1,0 +1,5 @@
+COMMONDIR	:=	common
+
+SRCS			+=	$(call FIND_SOURCES,$(SRCDIR)/$(COMMONDIR),$(SRCROOT))
+
+EXTRA_INCLUDES	+=	$(SRCDIR)/$(COMMONDIR)/include \

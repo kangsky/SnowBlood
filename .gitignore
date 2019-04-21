@@ -1,32 +1,25 @@
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# ignore intermediate and build results
+dst/
+obj/
+build/
+sim/
 
-# Precompiled Headers
-*.gch
-*.pch
+# OS BS
+##
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Editor temporaries
+*.swo
+*.swp
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
+# Python binaries
+*.pyc
+*.pyo
+*.pyd
