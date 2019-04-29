@@ -9,8 +9,7 @@
 
 /*
 	TODO list :
-		1. Group next_timeout_timespec + EventList
-		2. Add API to cancel scheduled event in dispatcher 
+		1. Add API to cancel scheduled event in dispatcher 
  */
 
 #define DISPATCHER_MAX_TIMEOUT 300000 // 5 minutes
@@ -24,17 +23,20 @@ typedef struct _event {
 } Event;
 
 /*
-	Group next_timeout_timespec + EventList
+	SB scheduler data structure
 */
+typedef struct {
+	pthread_t 			sb_dispatcher;
+	pthread_cond_t		dispatcher_cond;
+	pthread_mutex_t		dispatcher_mutex_cond;
+	pthread_mutex_t		dispatcher_mutex;
+	struct timespec  	next_timeout_timespec;
+	Event				*eventList;
+} SB_Scheduler;
+
 
 /* Local variables */
-// pthread for dispatcher
-static pthread_t 		sb_dispatcher;
-static pthread_cond_t 	dispatcher_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t	dispatcher_mutex_cond = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t	dispatcher_mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct timespec	next_timeout_timespec;
-static Event			*eventList;
+SB_Scheduler sb_scheduler;
 
 // Static Local functions
 static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval);
@@ -47,18 +49,34 @@ struct timespec getAbsTimeoutWithInterval(uint32_t timeInMillisecond);
 SB_STATUS initScheduler() {
 	int p_result;	
 
-	clock_gettime(CLOCK_REALTIME, &next_timeout_timespec);
+	clock_gettime(CLOCK_REALTIME, &sb_scheduler.next_timeout_timespec);
 	updateNextDispatchedTimeoutInMs(DISPATCHER_MAX_TIMEOUT);
+
+	// Init variables
+	p_result = pthread_cond_init(&sb_scheduler.dispatcher_cond, NULL);
+	if ( p_result != 0 ) {
+		return SB_FAIL;
+	}
+
+	p_result = pthread_mutex_init(&sb_scheduler.dispatcher_mutex_cond, NULL);
+	if ( p_result != 0 ) {
+		return SB_FAIL;
+	}
+
+	p_result = pthread_mutex_init(&sb_scheduler.dispatcher_mutex, NULL);
+	if ( p_result != 0 ) {
+		return SB_FAIL;
+	}
 	
 	// Create thread as workloop scheduler
-	p_result = pthread_create(&sb_dispatcher, NULL, dispatchLoop, NULL);	
+	p_result = pthread_create(&sb_scheduler.sb_dispatcher, NULL, dispatchLoop, NULL);	
 	if ( p_result != 0 ) {
 		return SB_FAIL;
 	}
 
 	/* Init Event List*/
-	eventList = NULL;
-	printf("initScheduler success, thread size  = %zu\n", pthread_get_stacksize_np(sb_dispatcher) );
+	sb_scheduler.eventList = NULL;
+	printf("initScheduler success, thread size  = %zu\n", pthread_get_stacksize_np(sb_scheduler.sb_dispatcher) );
 	return SB_OK;
 }
 
@@ -88,15 +106,15 @@ static void *dispatchLoop(void *p) {
 	pthread_setname_np("SB_Dispatcher");
 
 	while(1) {
-		pthread_mutex_lock( &dispatcher_mutex_cond );
-		result = pthread_cond_timedwait( &dispatcher_cond, &dispatcher_mutex_cond, &next_timeout_timespec );
-		pthread_mutex_unlock( &dispatcher_mutex_cond );
+		pthread_mutex_lock( &sb_scheduler.dispatcher_mutex_cond );
+		result = pthread_cond_timedwait( &sb_scheduler.dispatcher_cond, &sb_scheduler.dispatcher_mutex_cond, &sb_scheduler.next_timeout_timespec );
+		pthread_mutex_unlock( &sb_scheduler.dispatcher_mutex_cond );
 		printf("[DEBUG] condition timedwait result = %d\n", result);
 	
-		if ( result == ETIMEDOUT && eventList ) {
+		if ( result == ETIMEDOUT && sb_scheduler.eventList ) {
 			// if pthread_cond is timed out, tet the head of eventList and execute the event callback
-			if ( eventList->eventCb ) {
-				eventList->eventCb(NULL);
+			if ( sb_scheduler.eventList->eventCb ) {
+				sb_scheduler.eventList->eventCb(NULL);
 			}
 				
 			// RemoveHeadOfList
@@ -106,24 +124,24 @@ static void *dispatchLoop(void *p) {
 		// Condition is signaled to update timer, no event is fired at this point : update next timeout and move on here
 				
 		// Update next event timeout
-        pthread_mutex_lock( &dispatcher_mutex );
-		if ( eventList ) {
-       		next_timeout_timespec.tv_sec = eventList->absTime.tv_sec;
-        	next_timeout_timespec.tv_nsec = eventList->absTime.tv_nsec;
+        pthread_mutex_lock( &sb_scheduler.dispatcher_mutex );
+		if ( sb_scheduler.eventList ) {
+       		sb_scheduler.next_timeout_timespec.tv_sec = sb_scheduler.eventList->absTime.tv_sec;
+        	sb_scheduler.next_timeout_timespec.tv_nsec = sb_scheduler.eventList->absTime.tv_nsec;
         } else {
 			// no more events, update next timeout to DEFAULT one
 			updateNextDispatchedTimeoutInMs( DISPATCHER_MAX_TIMEOUT );
 		}
-		pthread_mutex_unlock( &dispatcher_mutex );
+		pthread_mutex_unlock( &sb_scheduler.dispatcher_mutex );
 	}
 
 	return NULL;
 }
 
 static void updateNextDispatchedTimeoutInMs(uint32_t timeInMillisecond) {
-	clock_gettime(CLOCK_REALTIME, &next_timeout_timespec);
-	next_timeout_timespec.tv_sec += timeInMillisecond / 1000;
-	next_timeout_timespec.tv_nsec += (timeInMillisecond%1000) * 1000000;
+	clock_gettime(CLOCK_REALTIME, &sb_scheduler.next_timeout_timespec);
+	sb_scheduler.next_timeout_timespec.tv_sec += timeInMillisecond / 1000;
+	sb_scheduler.next_timeout_timespec.tv_nsec += (timeInMillisecond%1000) * 1000000;
 }
 
 struct timespec getAbsTimeoutWithInterval(uint32_t timeInMillisecond) {
@@ -138,7 +156,7 @@ struct timespec getAbsTimeoutWithInterval(uint32_t timeInMillisecond) {
 
 /* LinkedList for event scheduler */
 static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval) {
-	Event *it = eventList;
+	Event *it = sb_scheduler.eventList;
 
 	printf("[DEBUG] addEventToList callback = %x interval = %d\n", (unsigned int)eventCb, interval);
 	Event *newEvent = (Event *)malloc(sizeof(Event));
@@ -154,13 +172,13 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval) 
 	// if head event is NULL OR already larger or euqal to newEvent, insert new node to the head
 	if ( !it || SB_compareTimeSpec( it->absTime, newEvent->absTime ) ) {
 		newEvent->next = it;
-		eventList = newEvent;
+		sb_scheduler.eventList = newEvent;
 
 		printf("[DEBUG] addEventToList update scheduler \n");
 		// Signal dispatcher_cond to wake up
-		pthread_mutex_lock( &dispatcher_mutex_cond );
-		pthread_cond_signal( &dispatcher_cond );
-		pthread_mutex_unlock( &dispatcher_mutex_cond );
+		pthread_mutex_lock( &sb_scheduler.dispatcher_mutex_cond );
+		pthread_cond_signal( &sb_scheduler.dispatcher_cond );
+		pthread_mutex_unlock( &sb_scheduler.dispatcher_mutex_cond );
 		
 		return SB_OK;
 	}
@@ -180,9 +198,9 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval) 
 }
 
 static SB_STATUS removeHeadOfList() {
-	Event *it = eventList;
+	Event *it = sb_scheduler.eventList;
 
-	eventList = it->next;
+	sb_scheduler.eventList = it->next;
 	free(it);
 	it = NULL;
 
