@@ -4,22 +4,27 @@
 #include "assert.h"
 #include "time.h"
 #include "stdlib.h"
+#include "string.h"
 #include "sb_time.h"
 #include "sys/errno.h"
 
 /*
 	TODO list :
-		1. Add API to cancel scheduled event in dispatcher 
+		1. Add API to cancel scheduled event in dispatcher
  */
-
 #define DISPATCHER_MAX_TIMEOUT 300000 // 5 minutes
+#define DISPATCHER_MAX_HANDLES 1024
+#define DISPATCHER_HANDLE_MAP_SIZE (DISPATCHER_MAX_HANDLES/8)+1
+#define GET_HANDLE_BIT_VAL(handleMap, index) (handleMap[index/8] >> (index % 8)) & 0x01
+#define TOGGLE_HANDLE_BIT_VAL(handleMap, index) handleMap[index/8] ^= 0x01 << (index % 8)
 
 /* Event List, asending order based on absolute time */
 typedef struct _event {
-	EventCB 			eventCb;
-	void				*argv;
-	struct timespec 	absTime;
-	struct _event		*next;
+	SB_DISPATCHER_HANDLE	handle;
+	EventCB 				eventCb;
+	void					*argv;
+	struct timespec 		absTime;
+	struct _event			*next;
 } Event;
 
 /*
@@ -32,6 +37,7 @@ typedef struct {
 	pthread_mutex_t		dispatcher_mutex;
 	struct timespec  	next_timeout_timespec;
 	Event				*eventList;
+	uint8_t				freeHandleMap[DISPATCHER_HANDLE_MAP_SIZE]; // index 0 is reserved for valid check, valid handle value would start from index 1
 } SB_Scheduler;
 
 
@@ -39,12 +45,13 @@ typedef struct {
 SB_Scheduler sb_scheduler;
 
 // Static Local functions
-static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval);
+static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle);
 static SB_STATUS removeHeadOfList(); 
 static void *dispatchLoop(void *p);
 static void updateNextDispatchedTimeoutInMs(uint32_t timeInMillisecond);
 struct timespec getAbsTimeoutWithInterval(uint32_t timeInMillisecond);
-
+static SB_DISPATCHER_HANDLE nextAvaiHandle();
+static void updateHandleMap(SB_DISPATCHER_HANDLE handle, bool val);
 
 SB_STATUS initScheduler() {
 	int p_result;	
@@ -67,6 +74,8 @@ SB_STATUS initScheduler() {
 	if ( p_result != 0 ) {
 		return SB_FAIL;
 	}
+
+	memset(&sb_scheduler.freeHandleMap, 0, DISPATCHER_HANDLE_MAP_SIZE);
 	
 	// Create thread as workloop scheduler
 	p_result = pthread_create(&sb_scheduler.sb_dispatcher, NULL, dispatchLoop, NULL);	
@@ -86,11 +95,11 @@ SB_STATUS deinitScheduelr() {
 }
 
 // For first version, let's take 32 bit as timestamp
-SB_STATUS dispatchTimedFunction(EventCB eventCb, void *argv, uint32_t interval) {
+SB_STATUS dispatchTimedFunction(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
 	SB_STATUS result = SB_OK;	
 
 	// Add event into scheduler eventList 
-	result = addEventToList(eventCb, argv, interval);
+	result = addEventToList(eventCb, argv, interval, handle);
 	if ( result != SB_OK ) {
 		return result;
 	}
@@ -155,7 +164,7 @@ struct timespec getAbsTimeoutWithInterval(uint32_t timeInMillisecond) {
 }
 
 /* LinkedList for event scheduler */
-static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval) {
+static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
 	Event *it = sb_scheduler.eventList;
 
 	printf("[DEBUG] addEventToList callback = %x interval = %d\n", (unsigned int)eventCb, interval);
@@ -163,7 +172,14 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval) 
 	if ( !newEvent ) {
 		return SB_OUT_OF_MEMORY;
 	}
-	
+
+	*handle = nextAvaiHandle(); 
+	if ( *handle == SB_DISPATCHER_INVALID_HANDLE ) {
+		return SB_OUT_OF_MEMORY; 
+	}
+
+	updateHandleMap( *handle, true );
+	newEvent->handle = *handle;
 	newEvent->eventCb = eventCb;
 	newEvent->argv = argv;
 	newEvent->absTime = getAbsTimeoutWithInterval(interval);
@@ -200,9 +216,29 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval) 
 static SB_STATUS removeHeadOfList() {
 	Event *it = sb_scheduler.eventList;
 
+	updateHandleMap( it->handle, false );
 	sb_scheduler.eventList = it->next;
 	free(it);
 	it = NULL;
 
 	return SB_OK;
+}
+
+
+static SB_DISPATCHER_HANDLE nextAvaiHandle() {
+	uint16_t 	i = 1;
+	
+	for(; i <  DISPATCHER_MAX_HANDLES ; i++ ) {
+		if ( ! ( GET_HANDLE_BIT_VAL(sb_scheduler.freeHandleMap, i) ) ) {
+			return i;
+		}
+	}
+	
+	return SB_DISPATCHER_INVALID_HANDLE;
+}
+
+static void updateHandleMap(SB_DISPATCHER_HANDLE handle, bool val) {
+	if ( ! ( (GET_HANDLE_BIT_VAL(sb_scheduler.freeHandleMap, handle)) && val) ) {
+		TOGGLE_HANDLE_BIT_VAL(sb_scheduler.freeHandleMap, handle);
+	}
 }
