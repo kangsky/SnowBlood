@@ -43,10 +43,12 @@ MAIN_SRC		:= 	$(SRCDIR)/SnowBlood.c
 EXTRA_INCLUDES		:=	$(SRCDIR)/include \
 						$(SRCDIR)/scheduler/include \
 						$(SRCDIR)/common/include \
+						$(SRCDIR)/memory/include \
 
 # Sub-makefiles
 include scheduler/scheduler.mk
 include common/common.mk
+include memory/memory.mk
 
 INCLUDES            +=	$(addprefix -I, $(EXTRA_INCLUDES)) \
 
