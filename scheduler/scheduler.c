@@ -10,7 +10,7 @@
 
 /*
 	TODO list :
-		1. Add API to cancel scheduled event in dispatcher
+		1. Pass arugements in dispatched functions 
  */
 #define DISPATCHER_MAX_TIMEOUT 300000 // 5 minutes
 #define DISPATCHER_MAX_HANDLES 1024
@@ -46,6 +46,7 @@ SB_Scheduler sb_scheduler;
 
 // Static Local functions
 static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle);
+static SB_STATUS removeEventFromList(SB_DISPATCHER_HANDLE handle);
 static SB_STATUS removeHeadOfList(); 
 static void *dispatchLoop(void *p);
 static void updateNextDispatchedTimeoutInMs(uint32_t timeInMillisecond);
@@ -95,7 +96,7 @@ SB_STATUS deinitScheduelr() {
 }
 
 // For first version, let's take 32 bit as timestamp
-SB_STATUS dispatchTimedFunction(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
+SB_STATUS dispatchTimedEvent(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
 	SB_STATUS result = SB_OK;	
 
 	// Add event into scheduler eventList 
@@ -105,6 +106,11 @@ SB_STATUS dispatchTimedFunction(EventCB eventCb, void *argv, uint32_t interval, 
 	}
 
 	return SB_OK;	
+}
+
+// Cancel dispatched event
+SB_STATUS removeTimedEvent(SB_DISPATCHER_HANDLE handle) {
+	return removeEventFromList(handle);
 }
 
 /* In general, for a dispatcher, we need to put it into waiting state by pthread_cond_timedwait for a timeout. When timeout occurs, we wake up the thread to process the scheduled event. */
@@ -199,6 +205,7 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, 
 		return SB_OK;
 	}
 
+	// Find first even longer than the requseted one
 	while ( it && it->next ) {
 		if ( SB_compareTimeSpec( it->next->absTime, newEvent->absTime ) ) {
 			break;
@@ -213,6 +220,41 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, 
 	return SB_OK;
 }
 
+static SB_STATUS removeEventFromList(SB_DISPATCHER_HANDLE handle) { 
+	if ( handle == SB_DISPATCHER_INVALID_HANDLE ) {
+		return SB_INVALID_PARAMETER;
+	}
+
+	Event *it = sb_scheduler.eventList;
+	Event *temp = NULL;
+
+	// If removed event is the head of list, signal scheduler to update it's next scheduled event
+	if ( it && it->handle == handle ) {
+		removeHeadOfList();
+		printf("[DEBUG] removeEventFromList update scheduler \n");
+		// Signal dispatcher_cond to wake up
+		pthread_mutex_lock( &sb_scheduler.dispatcher_mutex_cond );
+		pthread_cond_signal( &sb_scheduler.dispatcher_cond );
+		pthread_mutex_unlock( &sb_scheduler.dispatcher_mutex_cond );
+		return SB_OK;	
+	}
+
+	// Remove the event from the list
+	while ( it->next && it->next->handle != handle) {
+		it = it->next;
+	}
+
+	if ( it->next ) {
+		temp = it->next;
+		it->next = it->next->next;
+		updateHandleMap( handle, false );
+		free(temp);		
+		return SB_OK;
+	} else {
+		return SB_INVALID_PARAMETER;
+	}
+}
+
 static SB_STATUS removeHeadOfList() {
 	Event *it = sb_scheduler.eventList;
 
@@ -223,7 +265,6 @@ static SB_STATUS removeHeadOfList() {
 
 	return SB_OK;
 }
-
 
 static SB_DISPATCHER_HANDLE nextAvaiHandle() {
 	uint16_t 	i = 1;
