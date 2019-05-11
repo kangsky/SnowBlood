@@ -8,10 +8,6 @@
 #include "sb_time.h"
 #include "sys/errno.h"
 
-/*
-	TODO list :
-		1. Pass arugements in dispatched functions 
- */
 #define DISPATCHER_MAX_TIMEOUT 300000 // 5 minutes
 #define DISPATCHER_MAX_HANDLES 1024
 #define DISPATCHER_HANDLE_MAP_SIZE (DISPATCHER_MAX_HANDLES/8)+1
@@ -22,7 +18,8 @@
 typedef struct _event {
 	SB_DISPATCHER_HANDLE	handle;
 	EventCB 				eventCb;
-	void					*argv;
+	void					*arg;
+	size_t					argLen;
 	struct timespec 		absTime;
 	struct _event			*next;
 } Event;
@@ -45,7 +42,7 @@ typedef struct {
 SB_Scheduler sb_scheduler;
 
 // Static Local functions
-static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle);
+static SB_STATUS addEventToList(EventCB eventCb, void *arg, size_t argLen, uint32_t interval, SB_DISPATCHER_HANDLE* handle);
 static SB_STATUS removeEventFromList(SB_DISPATCHER_HANDLE handle);
 static SB_STATUS removeHeadOfList(); 
 static void *dispatchLoop(void *p);
@@ -96,11 +93,11 @@ SB_STATUS deinitScheduelr() {
 }
 
 // For first version, let's take 32 bit as timestamp
-SB_STATUS dispatchTimedEvent(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
+SB_STATUS dispatchTimedEvent(EventCB eventCb, void *arg, size_t argLen, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
 	SB_STATUS result = SB_OK;	
 
 	// Add event into scheduler eventList 
-	result = addEventToList(eventCb, argv, interval, handle);
+	result = addEventToList(eventCb, arg, argLen, interval, handle);
 	if ( result != SB_OK ) {
 		return result;
 	}
@@ -129,7 +126,7 @@ static void *dispatchLoop(void *p) {
 		if ( result == ETIMEDOUT && sb_scheduler.eventList ) {
 			// if pthread_cond is timed out, tet the head of eventList and execute the event callback
 			if ( sb_scheduler.eventList->eventCb ) {
-				sb_scheduler.eventList->eventCb(NULL);
+				sb_scheduler.eventList->eventCb( sb_scheduler.eventList->arg, sb_scheduler.eventList->argLen );
 			}
 				
 			// RemoveHeadOfList
@@ -170,7 +167,7 @@ struct timespec getAbsTimeoutWithInterval(uint32_t timeInMillisecond) {
 }
 
 /* LinkedList for event scheduler */
-static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
+static SB_STATUS addEventToList(EventCB eventCb, void *arg, size_t argLen, uint32_t interval, SB_DISPATCHER_HANDLE* handle) {
 	Event *it = sb_scheduler.eventList;
 
 	printf("[DEBUG] addEventToList callback = %x interval = %d\n", (unsigned int)eventCb, interval);
@@ -187,9 +184,15 @@ static SB_STATUS addEventToList(EventCB eventCb, void *argv, uint32_t interval, 
 	updateHandleMap( *handle, true );
 	newEvent->handle = *handle;
 	newEvent->eventCb = eventCb;
-	newEvent->argv = argv;
 	newEvent->absTime = getAbsTimeoutWithInterval(interval);
 	newEvent->next = NULL;
+	// Allocate buffer from Heap for arg during context swtich, release this buffer after event is fired
+	newEvent->arg = (void *)malloc(argLen);
+	if ( !newEvent->arg ) {
+		return SB_OUT_OF_MEMORY;
+	}
+	newEvent->argLen = argLen;
+	memcpy(newEvent->arg, arg, argLen);
 
 	// if head event is NULL OR already larger or euqal to newEvent, insert new node to the head
 	if ( !it || SB_compareTimeSpec( it->absTime, newEvent->absTime ) ) {
@@ -248,6 +251,8 @@ static SB_STATUS removeEventFromList(SB_DISPATCHER_HANDLE handle) {
 		temp = it->next;
 		it->next = it->next->next;
 		updateHandleMap( handle, false );
+		// free buffer for arg
+		free(temp->arg);
 		free(temp);		
 		return SB_OK;
 	} else {
@@ -260,6 +265,8 @@ static SB_STATUS removeHeadOfList() {
 
 	updateHandleMap( it->handle, false );
 	sb_scheduler.eventList = it->next;
+	// free buffer for arg
+	free(it->arg);
 	free(it);
 	it = NULL;
 
