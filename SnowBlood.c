@@ -1,9 +1,13 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "scheduler.h"
+#include "memory.h"
 #include "time.h"
 #include "pthread.h"
 #include "assert.h"
+
+#define SB_SCHEDULER_DEBUG 0
+#define SB_MEMORY_DEBUG 1
 
 #define DUMMY_TIMEOUT_1 10000
 #define DUMMY_TIMEOUT_2 15000
@@ -18,8 +22,27 @@ static struct timespec current_ts;
 SB_DISPATCHER_HANDLE dummy_handle_1, dummy_handle_2, dummy_handle_3;
 
 
+#define HEAP_SIZE 1024*1024 // 1 MB
+
 int main(int argc, char *argv[]) {
 	SB_STATUS	sb_result;
+
+#if SB_MEMORY_DEBUG
+	sb_result = sb_init_memory(HEAP_SIZE, SB_MEM_CONFIG_MODE_1);
+	assert (sb_result == SB_OK);
+	
+	uint8_t *ptr_1 = NULL;
+	uint32_t *ptr_2 = NULL;
+	
+	ptr_1 = (uint8_t *)sb_malloc(5*sizeof(uint8_t));
+	assert (ptr_1);
+	ptr_2 = (uint32_t*)sb_malloc(2*sizeof(uint32_t))	
+	assert (ptr_2);
+	printf("memory debug : ptr_1 = 0x%x ptr_2= 0x%x\n", ptr_1, ptr_2);
+#endif
+
+
+#if SB_SCHEDULER_DEBUG
 	uint8_t arg_1 = 0x14;
 	uint32_t arg_2 = 0x12345678;
 	char arg_3[5] = {'a', 'b', 'c', 'd', 'e'};
@@ -43,6 +66,8 @@ int main(int argc, char *argv[]) {
 	printf("handle value = %d %d %d \n", dummy_handle_1, dummy_handle_2, dummy_handle_3);
 	
 	while(1);
+#endif
+
 	return 0;
 }
 

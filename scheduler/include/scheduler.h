@@ -2,6 +2,9 @@
 	Scheduler
 		Function dispatcher with specified timer
  */
+#ifndef SB_SCHEDULER_H
+#define SB_SCHEDULER_H
+
 #include "sb_common.h"
 
 #define SB_DISPATCHER_INVALID_HANDLE 0
@@ -17,3 +20,5 @@ SB_STATUS dispatchTimedEvent(EventCB eventCb, void *arg, size_t argLen, uint32_t
 
 // Cancel dispatched event
 SB_STATUS removeTimedEvent(SB_DISPATCHER_HANDLE handle);
+
+#endif
