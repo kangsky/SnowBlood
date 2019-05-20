@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "time.h"
 #include "pthread.h"
+#include "string.h"
 #include "assert.h"
 
 #define SB_SCHEDULER_DEBUG 0
@@ -33,12 +34,24 @@ int main(int argc, char *argv[]) {
 	
 	uint8_t *ptr_1 = NULL;
 	uint32_t *ptr_2 = NULL;
+	uint8_t *ptr_3 = NULL;
 	
 	ptr_1 = (uint8_t *)sb_malloc(5*sizeof(uint8_t));
 	assert (ptr_1);
-	ptr_2 = (uint32_t*)sb_malloc(2*sizeof(uint32_t))	
+	memset(ptr_1, 1, 5);
+	ptr_2 = (uint32_t*)sb_malloc(2*sizeof(uint32_t));	
 	assert (ptr_2);
-	printf("memory debug : ptr_1 = 0x%x ptr_2= 0x%x\n", ptr_1, ptr_2);
+	memset(ptr_2, 2, 2);
+	printf("memory debug : ptr_1 = 0x%lu ptr_2= 0x%lu\n", (unsigned long int)ptr_1, (unsigned long int)ptr_2);
+
+	free(ptr_1);
+
+	ptr_3 = (uint8_t *)sb_malloc(2*sizeof(uint8_t));
+	assert (ptr_3);
+	memset(ptr_3, 3, 2);
+
+	free(ptr_3);
+	free(ptr_2);
 #endif
 
 

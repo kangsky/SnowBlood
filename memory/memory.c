@@ -96,8 +96,9 @@ void* sb_malloc(size_t block_size) {
 		new_blk->next_blk = blk->next_blk;
 	
 		// Update next block linking relation
-		blk->next_blk->pre_blk = new_blk;
-		
+		if ( blk->next_blk ) {
+			blk->next_blk->pre_blk = new_blk;
+		}
 		// Update previous block info and its linking relation
 		blk->next_blk = new_blk;
 		blk->next_fragment_size = 0;
@@ -119,11 +120,15 @@ SB_STATUS sb_free(void* ptr) {
 	assert( blk );
 
 	// Update next block linking relation
-	blk->next_blk->pre_blk = blk->pre_blk;
+	if ( blk->next_blk ) {
+		blk->next_blk->pre_blk = blk->pre_blk;
+	}
 
 	// Update previous block info and its linking relation
-	blk->pre_blk->next_fragment_size += blk->blk_size;
-	blk->pre_blk->next_blk = blk->next_blk;
+	if (blk->pre_blk ) {
+		blk->pre_blk->next_fragment_size += blk->blk_size;
+		blk->pre_blk->next_blk = blk->next_blk;
+	}
 
 	// Free current block info : memory reset, free block entry etc
 	memset(blk->blk_addr, 0, blk->blk_size);
