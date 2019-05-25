@@ -3,8 +3,15 @@
 #include "string.h"
 #include "assert.h"
 
+#define ALIGNMENT_SIZE 8 // word size for x86_64 architecture
+
 /*
 	Memory Management for Heap
+ */
+
+/*
+	Memory Block Format
+	PADDING | HEADER | USER MEMORY BLOCK 
  */
 typedef struct _block_entry {
 	uint8_t *blk_addr;
@@ -13,6 +20,8 @@ typedef struct _block_entry {
 	struct _block_entry *pre_blk;
 	struct _block_entry	*next_blk;
 } mem_blk_list;
+
+#define BLK_HEADER sizeof(mem_blk_list)
 
 typedef struct {
 	uint8_t *heap;
@@ -52,45 +61,44 @@ SB_STATUS sb_deinit_memory() {
 
 void* sb_malloc(size_t block_size) {
 	mem_blk_list *blk = blk_list;
-	
-	mem_blk_list *new_blk = (mem_blk_list *)malloc( sizeof(mem_blk_list) );
-	if ( !new_blk ) {
-		return NULL;
-	}
-	new_blk->blk_addr = NULL;
-	new_blk->blk_size = block_size;
-	new_blk->next_fragment_size = 0;
-	new_blk->pre_blk = NULL;
-	new_blk->next_blk = NULL;
-
+	mem_blk_list *new_blk = NULL;
+	size_t full_blk_size = block_size + BLK_HEADER;
 
 	if ( !blk ) {
 		// blk_list is empty
-		if ( block_size > heap_ctx.heap_size ) {
+		new_blk = (mem_blk_list *)heap_ctx.heap;
+	
+		new_blk->blk_size = full_blk_size;
+		new_blk->pre_blk = NULL;
+		new_blk->next_blk = NULL;
+
+		if ( full_blk_size > heap_ctx.heap_size ) {
 			// Out of memory
-			free(new_blk);
 			return NULL;
 		}
 
 		// Update blk_addr and next_fragment_size
-		new_blk->blk_addr = heap_ctx.heap;
-		new_blk->next_fragment_size = heap_ctx.heap_size - block_size;
+		new_blk->blk_addr = (uint8_t *)new_blk + BLK_HEADER;
+		new_blk->next_fragment_size = heap_ctx.heap_size - full_blk_size;
 		
 		blk_list = new_blk;	
 	
 	} else {
 		// blk_list is not emtry, update the list based on request
-		while ( blk && blk->next_fragment_size < block_size ) {
+		while ( blk && blk->next_fragment_size < full_blk_size ) {
 			// Find fist available fragment which can meet the request block size
 			blk = blk->next_blk;
 		}
 		if ( !blk ) {
-			free(new_blk);
 			return NULL;
 		}
+
+		// Update new_blk addr
+		new_blk = (mem_blk_list *)( (uint8_t *)blk + blk->blk_size );
 		
 		// Update current new block info and its linking relation
-		new_blk->blk_addr = blk->blk_addr + blk->blk_size;
+		new_blk->blk_addr = (uint8_t *)new_blk + BLK_HEADER;
+		new_blk->blk_size = full_blk_size;
 		new_blk->next_fragment_size = blk->next_fragment_size - new_blk->blk_size;
 		new_blk->pre_blk = blk;
 		new_blk->next_blk = blk->next_blk;
@@ -137,8 +145,7 @@ SB_STATUS sb_free(void* ptr) {
 	}
 
 	// Free current block info : memory reset, free block entry etc
-	memset(blk->blk_addr, 0, blk->blk_size);
-	free(blk);
+	memset(blk, 0, blk->blk_size);
 	
 	return SB_OK;
 }
