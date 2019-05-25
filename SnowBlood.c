@@ -35,23 +35,30 @@ int main(int argc, char *argv[]) {
 	uint8_t *ptr_1 = NULL;
 	uint32_t *ptr_2 = NULL;
 	uint8_t *ptr_3 = NULL;
+	uint8_t *ptr_4 = NULL;
 	
 	ptr_1 = (uint8_t *)sb_malloc(5*sizeof(uint8_t));
 	assert (ptr_1);
 	memset(ptr_1, 1, 5);
 	ptr_2 = (uint32_t*)sb_malloc(2*sizeof(uint32_t));	
 	assert (ptr_2);
-	memset(ptr_2, 2, 2);
+	memset(ptr_2, 2, 8);
 	printf("memory debug : ptr_1 = 0x%lu ptr_2= 0x%lu\n", (unsigned long int)ptr_1, (unsigned long int)ptr_2);
 
-	free(ptr_1);
+	sb_free(ptr_1);
 
 	ptr_3 = (uint8_t *)sb_malloc(2*sizeof(uint8_t));
 	assert (ptr_3);
 	memset(ptr_3, 3, 2);
 
-	free(ptr_3);
-	free(ptr_2);
+	sb_free(ptr_3);
+	
+	ptr_4 = (uint8_t *)sb_malloc(5*sizeof(uint16_t));
+	assert (ptr_4);
+	memset(ptr_4, 4, 10);
+
+	sb_free(ptr_2);
+	sb_free(ptr_4);
 #endif
 
 

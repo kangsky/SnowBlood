@@ -119,14 +119,20 @@ SB_STATUS sb_free(void* ptr) {
 	
 	assert( blk );
 
+	if ( blk == blk_list ) {
+		blk_list = blk->next_blk;
+	}
+
 	// Update next block linking relation
 	if ( blk->next_blk ) {
 		blk->next_blk->pre_blk = blk->pre_blk;
 	}
 
 	// Update previous block info and its linking relation
-	if (blk->pre_blk ) {
+	if ( blk->pre_blk ) {
 		blk->pre_blk->next_fragment_size += blk->blk_size;
+		// If current blk is the end block in the list, the next_fragment_size needs to be added back in previous block
+		blk->pre_blk->next_fragment_size += blk->next_blk ? 0 : blk->next_fragment_size;
 		blk->pre_blk->next_blk = blk->next_blk;
 	}
 
