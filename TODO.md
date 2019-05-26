@@ -4,7 +4,7 @@
 		b. Mode 2 : Dynamically maintain the heap with double linked list
 			- (Done) no alignment, validation/debugging
 				- bug in free function, need to update blk_list if head block is updated
-			- alignment
+			- (Done)alignment
 			- (Done) Remove addition malloc/free for double linked list. Add memory block header
 			- Reduce block header size for memory optimization
 	2. Application (Voice Recognition)

@@ -3,7 +3,6 @@
 #include "string.h"
 #include "assert.h"
 
-#define ALIGNMENT_SIZE 8 // word size for x86_64 architecture
 
 /*
 	Memory Management for Heap
@@ -11,7 +10,7 @@
 
 /*
 	Memory Block Format
-	PADDING | HEADER | USER MEMORY BLOCK 
+	HEADER | PADDING BYTES | USER MEMORY BLOCK 
  */
 typedef struct _block_entry {
 	uint8_t *blk_addr;
@@ -22,6 +21,9 @@ typedef struct _block_entry {
 } mem_blk_list;
 
 #define BLK_HEADER sizeof(mem_blk_list)
+#define ALIGN_SIZE 8 // word size for x86_64 architecture
+#define ALIGN_BIT_SHIFT 3
+#define ALIGN_BIT_MASK 0x0000000000000007
 
 typedef struct {
 	uint8_t *heap;
@@ -62,7 +64,7 @@ SB_STATUS sb_deinit_memory() {
 void* sb_malloc(size_t block_size) {
 	mem_blk_list *blk = blk_list;
 	mem_blk_list *new_blk = NULL;
-	size_t full_blk_size = block_size + BLK_HEADER;
+	size_t full_blk_size = block_size + BLK_HEADER + (ALIGN_SIZE - 1) ;
 
 	if ( !blk ) {
 		// blk_list is empty
@@ -79,6 +81,11 @@ void* sb_malloc(size_t block_size) {
 
 		// Update blk_addr and next_fragment_size
 		new_blk->blk_addr = (uint8_t *)new_blk + BLK_HEADER;
+		if ( (size_t)new_blk->blk_addr & ALIGN_BIT_MASK ) {
+			// alignment adjustment
+			new_blk->blk_addr = (uint8_t *) ((((size_t)new_blk->blk_addr >> ALIGN_BIT_SHIFT) + 0x01) << ALIGN_BIT_SHIFT );
+		}
+
 		new_blk->next_fragment_size = heap_ctx.heap_size - full_blk_size;
 		
 		blk_list = new_blk;	
@@ -98,6 +105,11 @@ void* sb_malloc(size_t block_size) {
 		
 		// Update current new block info and its linking relation
 		new_blk->blk_addr = (uint8_t *)new_blk + BLK_HEADER;
+		if ( (size_t)new_blk->blk_addr & ALIGN_BIT_MASK ) {
+			// alignment adjustment
+			new_blk->blk_addr = (uint8_t *) ((((size_t)new_blk->blk_addr >> ALIGN_BIT_SHIFT) + 0x01) << ALIGN_BIT_SHIFT );
+		}
+
 		new_blk->blk_size = full_blk_size;
 		new_blk->next_fragment_size = blk->next_fragment_size - new_blk->blk_size;
 		new_blk->pre_blk = blk;
