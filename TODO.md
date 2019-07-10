@@ -7,8 +7,9 @@
 			- (Done)alignment
 			- (Done) Remove addition malloc/free for double linked list. Add memory block header
 			- Reduce block header size for memory optimization
-	2. Application (Voice Recognition)
+	2. Application (Voice Recognition) (libsound, http://libsound.io/)
 		a. Activate microphone and record voice, save it in file system
-		b. Playback the voice from file system
-		c. Voice to text conversion
-		b. Bsaed on text keywords, reacts according, e.g. create a folder, play music etc.
+		b. Playback the voice from file system, modify sb_playback.c to play sound from raw audio file
+		c. Intergrate soundio project to SnowBlood
+		d. Voice to text conversion
+		e. Bsaed on text keywords, reacts according, e.g. create a folder, play music etc.
