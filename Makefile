@@ -38,6 +38,7 @@ SRCDIR			:=	$(SRCROOT)
 # source files
 SRCS			:=	
 MAIN_SRC		:= 	$(SRCDIR)/SnowBlood.c
+APP_SRCS		:=	
 
 # include files
 EXTRA_INCLUDES		:=	$(SRCDIR)/include \
@@ -49,6 +50,7 @@ EXTRA_INCLUDES		:=	$(SRCDIR)/include \
 include scheduler/scheduler.mk
 include common/common.mk
 include memory/memory.mk
+include application/application.mk
 
 INCLUDES            +=	$(addprefix -I, $(EXTRA_INCLUDES)) \
 
@@ -66,6 +68,9 @@ LDOPTS				:=	-Wl,-map,$(MAPFILE)
 all: install
 install: build
 build: $(TARGET)
+
+# Traget for debuggin only
+print-%: ; @echo $* is $($*)
 
 # Include common rules
 include $(MAKEFILE_ROOT)/rules.mk

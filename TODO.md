@@ -9,5 +9,7 @@
 			- Reduce block header size for memory optimization
 	2. Application ( Send multiple files over TCP in parallel )
 			- TCP Connection client/server
+				1) Debugging live chatting
+				2) (Done) Makefiles for multiple target executable files
 			- Send one file over TCP
 			- Send multiple files in parallel
