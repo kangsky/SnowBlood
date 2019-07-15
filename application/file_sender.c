@@ -9,6 +9,8 @@
 #define CHATTING_BUF_MAX 80 
 #define TCP_SERVER_PORT 8080 
 
+extern int errno;
+
 static void live_chatting(int sockfd);
   
 int main() 
@@ -52,17 +54,20 @@ void live_chatting(int sockfd)
 { 
     char buf[CHATTING_BUF_MAX]; 
     uint16_t n;
+	int error = 0;
  
     while (1) { 
         memset(buf, 0, CHATTING_BUF_MAX); 
-        printf("Enter the string : "); 
+        printf(" To server : "); 
         n = 0; 
         while ((buf[n++] = getchar()) != '\n'); 
-        printf("String typed: %s\n", buf); 
-        write(sockfd, buf, sizeof(buf)); 
+        write(sockfd, buf, n); 
        	memset(buf, 0, CHATTING_BUF_MAX); 
-        read(sockfd, buf, sizeof(buf)); 
-        printf("From Server : %s", buf); 
+        error = read(sockfd, buf, sizeof(buf));
+		if ( error <= 0 ) { 
+        	printf("Read failed error = %d, errno = %s \n ", error, strerror(errno)); 
+        }
+		printf("From Server : %s", buf); 
         if ((strncmp(buf, "exit", 4)) == 0) { 
             printf("Client Exit...\n"); 
             break; 

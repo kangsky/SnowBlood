@@ -2,6 +2,7 @@
 #include "netinet/in.h"
 #include "sys/socket.h"
 #include "sys/types.h"
+#include "sys/ioctl.h"
 #include "assert.h"
 #include "string.h"
 #include "stdlib.h"
@@ -10,6 +11,8 @@
 
 #define TCP_SERVER_PORT 8080
 #define CHATTING_BUF_MAX 100
+
+extern int errno;
 
 static void live_chatting(int sockfd);
 
@@ -36,14 +39,18 @@ int main(int argc, char *argv[]) {
 	// Put TCP Server into listen mode
 	res = listen(sockfd, 5);
 	assert(res == 0);
-	
+
+	printf("TCP Server is setup for listenning, waiting for client connection request...\n");
+		
 	// Accept the data packet from client
 	len = sizeof(client_addr);
 	connfd = accept(sockfd, (struct sockaddr *)&client_addr, &len);
 	assert(connfd >= 0);
 
+	printf("TCP client connection is accepted\n");
+
 	// Live chatting over TCP
-	live_chatting(sockfd);
+	live_chatting(connfd);
 
 	// Close socket
 	close(sockfd);
@@ -55,21 +62,27 @@ int main(int argc, char *argv[]) {
 static void live_chatting(int sockfd) {
 	char buf[CHATTING_BUF_MAX];	
 	uint16_t n;
+	int error;
+
+	printf("Live chatting started!\n");
 
 	while(1) {
 		memset(buf, 0, CHATTING_BUF_MAX);
 		
 		// Receive message from client
-		read(sockfd, buf, CHATTING_BUF_MAX);
-		printf("From client : %s \t\n To Client : ", buf);
+		error = read(sockfd, buf, CHATTING_BUF_MAX);
+ 		if ( error <= 0 ) {
+ 			printf("Read failed error = %d, errno = %s \n ", error, strerror(errno));                    
+		}
+		printf("From client : %s To Client : ", buf);
 
 		memset(buf, 0, CHATTING_BUF_MAX);
 		n = 0;
 		while ( (buf[n++] = getchar()) != '\n');		
 
 		// Send message to client
-		write(sockfd, buf, CHATTING_BUF_MAX);
-		
+		write(sockfd, buf, n);
+	
 		// If input string is "exit", end the chatting
 		if (!strncmp("exit", buf, 4)) {
 			printf("Server exit...\n");

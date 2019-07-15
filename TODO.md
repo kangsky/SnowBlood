@@ -8,8 +8,8 @@
 			- (Done) Remove addition malloc/free for double linked list. Add memory block header
 			- Reduce block header size for memory optimization
 	2. Application ( Send multiple files over TCP in parallel )
-			- TCP Connection client/server
-				1) Debugging live chatting
+			- (Done) TCP Connection client/server
+				1) (Done) Debugging live chatting
 				2) (Done) Makefiles for multiple target executable files
 			- Send one file over TCP
 			- Send multiple files in parallel
