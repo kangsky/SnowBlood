@@ -11,5 +11,5 @@
 			- (Done) TCP Connection client/server
 				1) (Done) Debugging live chatting
 				2) (Done) Makefiles for multiple target executable files
-			- Send one file over TCP
+			- (Done) Send one file over TCP
 			- Send multiple files in parallel

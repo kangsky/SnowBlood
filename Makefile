@@ -26,7 +26,7 @@ MAPFILE         = 	$(BUILDDIR)/$(PROG).map
 DISFILE         = 	$(BUILDDIR)/$(PROG).dis
 DSYM            = 	$(BUILDDIR)/$(PROG).dSYM
 LTOOBJFILE      = 	$(BUILDDIR)/$(PROG).o
-TARGETLIB		=	$(BUILDDIR)/libscheduler.a
+TARGETLIB		=	$(BUILDDIR)/libsnowblood.a
 TARGET			=	$(BUILDDIR)/SnowBlood
 
 # Libraries

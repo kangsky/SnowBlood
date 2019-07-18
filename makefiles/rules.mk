@@ -12,7 +12,7 @@ $(TARGETLIB): $(OBJS)
 
 # Linking library
 $(TARGET) : $(TARGETLIB) $(APP_OBJS) 
-	$(CC) -o $(TARGET) $(MAIN_SRC) $(COPTS) -L$(BIN_DST_DIR) -lscheduler
+	$(CC) -o $(TARGET) $(MAIN_SRC) $(COPTS) -L$(BIN_DST_DIR) -lsnowblood
 	cp $(TARGET) $(BIN_DST_DIR)
 
 # Build rules
@@ -27,7 +27,7 @@ $(OBJDIR)/%.cpp.o: $(SRCROOT)/%.cpp
 # Build rules for direct executable files which are excluded from static library
 $(OBJDIR)/%.o: $(SRCROOT)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) -o $(basename $@) $(<) $(COPTS)
+	$(CC) -o $(basename $@) $(<) $(COPTS) -L$(BIN_DST_DIR) -lsnowblood
 	cp $(basename $@) $(BIN_DST_DIR)
 
 clean:
