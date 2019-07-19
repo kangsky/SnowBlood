@@ -13,3 +13,7 @@
 				2) (Done) Makefiles for multiple target executable files
 			- (Done) Send one file over TCP
 			- Send multiple files in parallel
+				1) (Done) Multi-threading for client/server
+				2) (Done) Directory iteration
+				3) Producer to read all files / consumer for all clients to read one of them / maintain one buffer
+				4) message header for file name transmission
