@@ -15,5 +15,8 @@
 			- Send multiple files in parallel
 				1) (Done) Multi-threading for client/server
 				2) (Done) Directory iteration
-				3) Producer to read all files / consumer for all clients to read one of them / maintain one buffer
-				4) message header for file name transmission
+				3) (Done) Producer to read all files / consumer for all clients to read one of them / maintain one buffer
+				4) (Done) Message header for file name transmission
+				5) (Done) TCP packet frame transmission with header
+				6) (Done) Debugging intergration bugs! Last step to complete TODO list here!
+				7) Code Polish + Better debugging framework 

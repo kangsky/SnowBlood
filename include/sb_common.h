@@ -5,5 +5,6 @@
 #include "sb_platform_defines.h"
 #include "stdint.h"
 #include "stddef.h"
+#include "sb_time.h"
 
 #endif

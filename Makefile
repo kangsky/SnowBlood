@@ -65,7 +65,7 @@ LDOPTS				:=	-Wl,-map,$(MAPFILE)
 # Targets
 .PHONY: all build install 
 .DEFAULT: all
-all: install
+all: clean install
 install: build
 build: $(TARGET)
 
