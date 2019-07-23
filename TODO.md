@@ -1,4 +1,4 @@
- TODO List
+TODO List
 	1. Memory Management
 		a. Mode 1 : Pre-allocate a set of memory block with fixed size.  
 		b. Mode 2 : Dynamically maintain the heap with double linked list
@@ -19,4 +19,9 @@
 				4) (Done) Message header for file name transmission
 				5) (Done) TCP packet frame transmission with header
 				6) (Done) Debugging intergration bugs! Last step to complete TODO list here!
-				7) Code Polish + Better debugging framework 
+				7) (Done) Code Polish + Better debugging framework
+
+DONE!!!
+
+	Next Step:
+		Code refactoring
